@@ -1,5 +1,7 @@
 import com.typesafe.startscript.StartScriptPlugin
 
+resolvers += "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
+
 name := "wabbakka"
 
 organization := "org.skyluc"
