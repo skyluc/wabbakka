@@ -10,20 +10,36 @@ import org.jboss.netty.bootstrap.ServerBootstrap
 import org.jboss.netty.channel.ChannelPipelineFactory
 import org.jboss.netty.channel.Channels
 import akka.actor.Props
+import akka.pattern.ask
+import akka.util.Timeout
+import akka.util.duration._
+import akka.actor.ActorRef
+import akka.dispatch.Await
 
 case class InSocketStart(port: Int)
+case object NewConnectionActor
 
 class InSocketActor extends Actor with Logger {
 
-  var socket: ServerSocketChannel = _
+  var name: String = _
+  var port: Int = _
+
+  var connectionCount = 0
 
   def receive = {
-    case InSocketStart(port) =>
+    case InSocketStart(p) =>
+      port= p
+      name = "InSocket-" + port
       val factory = new NioServerSocketChannelFactory(Executors.newCachedThreadPool, Executors.newCachedThreadPool)
       val bootstrap = new ServerBootstrap(factory)
 
       bootstrap.setPipelineFactory(new ChannelPipelineFactory {
-        def getPipeline() = Channels.pipeline(new ConnectionHandler(createConnectionActor))
+        def getPipeline() = {
+          implicit val timeout = Timeout(500 millis)
+          val future = (self ? NewConnectionActor).mapTo[ActorRef]
+          val connectionActor = Await.result(future, 500 millis)
+          Channels.pipeline(new ConnectionHandler(connectionActor))
+        }
       })
 
       bootstrap.setOption("child.tcpNoDelay", true)
@@ -31,9 +47,12 @@ class InSocketActor extends Actor with Logger {
 
       bootstrap.bind(new InetSocketAddress(port))
 
-      logger.info("==== In Socket Started on %d ====".format(port))
+      logger.info(name, "started")
+    case NewConnectionActor =>
+      val connectionActor = context.actorOf(Props[ConnectionActor])
+      connectionCount += 1
+      connectionActor ! ConnectionStart(port, connectionCount)
+      sender ! connectionActor
   }
-  
-  def createConnectionActor = context.actorOf(Props[ConnectionActor])
 
 }

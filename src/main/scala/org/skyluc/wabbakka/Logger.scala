@@ -22,8 +22,8 @@ object Logger {
     actor = system.actorOf(Props[LoggerActor])
   }
 
-  def info(message: String) {
-    Logger.actor ! message
+  def info(name: String, message: String) {
+    Logger.actor ! "%s: %s".format(name, message)
   }
 }
 

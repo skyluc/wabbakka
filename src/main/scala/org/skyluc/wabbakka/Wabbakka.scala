@@ -15,8 +15,6 @@ object Wabbakka extends Logger {
     
     Logger.init(system)
     
-    logger.info("===== App Started =====")
-    
     system.actorOf(Props[InSocketActor], "listeningSocket") ! InSocketStart(port)
     
   }
